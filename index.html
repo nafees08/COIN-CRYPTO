@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Crypto Dashboard — Tailwind</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: { brand: { DEFAULT: '#6c5ce7' } }
+        }
+      }
+    }
+  </script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <meta name="description" content="Interactive crypto dashboard — top 250, compare, USD/BDT, Tailwind" />
+  <style>
+    body { padding-top: 72px; transition: background-color .25s, color .25s; }
+    /* modal animation helpers */
+    .modal-backdrop { transition: opacity .22s ease; }
+    .modal-panel { transition: transform .22s cubic-bezier(.2,.9,.2,1), opacity .18s ease; transform-origin: center; }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-slate-900 min-h-full">
+
+  <!-- NAVBAR (fixed) -->
+  <nav class="fixed inset-x-0 top-0 h-20 bg-white/90 backdrop-blur border-b border-slate-200 dark:bg-slate-900/90 dark:border-slate-700 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-fit">
+      <div class="flex items-center justify-between h-fit p-5">
+        <!-- LEFT: hamburger (mobile) + brand + nav links -->
+        <div class="flex items-center gap-3">
+          <button id="hamburgerBtn" class="md:hidden p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Open menu">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+          </button>
+
+          <!-- BRAND -->
+          <div class="flex items-center gap-2 cursor-pointer" id="brandBtn">
+            <div class="flex items-center justify-center w-9 h-9 rounded-md bg-amber-100 text-amber-800 font-bold">
+              <span class="text-lg">₵</span>
+            </div>
+            <div class="hidden sm:block">
+              <div class="text-lg text-yellow-500 font-bold">CRYPTO</div>
+            </div>
+          </div>
+
+          <!-- Desktop nav links (changed to buttons) -->
+          <ul id="navLinks" class="hidden md:flex items-center gap-6 ml-6">
+            <li><button id="navBuy" class="text-sm font-medium text-slate-700 hover:text-brand dark:text-slate-200">Buy Crypto</button></li>
+            <li><button id="navSell" class="text-sm font-medium text-slate-700 hover:text-brand dark:text-slate-200">Sell Crypto</button></li>
+            <li><button id="navMarkets" class="text-sm font-medium text-slate-700 hover:text-brand dark:text-slate-200">Markets</button></li>
+          </ul>
+        </div>
+
+        <!-- CENTER: Search (desktop visible) -->
+        <div class="hidden md:flex flex-1 justify-center px-4">
+          <div class="w-full max-w-2xl">
+            <div class="relative">
+              <input id="globalSearch" type="search" placeholder="Search coins, e.g. bitcoin, eth..." autocomplete="off"
+                class="w-full rounded-full border border-slate-200 bg-white py-2 px-4 pl-10 text-sm shadow-sm focus:ring-2 focus:ring-brand/40 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100" />
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15z"/>
+              </svg>
+
+              <!-- dropdown for search results -->
+              <div id="searchDropdown" class="absolute left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg hidden z-40 overflow-hidden max-h-64 overflow-auto"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: actions -->
+        <div class="flex items-center gap-2">
+          <div class="md:hidden">
+            <input id="mobileSearch" type="search" placeholder="Search..." class="w-36 rounded-full border border-slate-200 bg-white py-1.5 px-3 text-sm shadow-sm focus:ring-2 focus:ring-brand/40 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100" />
+          </div>
+
+          <div class="hidden sm:flex items-center gap-2">
+            <button id="loginBtn" class="text-sm px-3 py-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">Login</button>
+            <button id="signupBtn" class="text-sm px-3 py-1 rounded-md bg-brand text-white hover:bg-brand/90">Signup</button>
+          </div>
+
+          <button id="themeToggle" class="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800" aria-label="Toggle theme">
+            <svg id="themeIcon" class="h-5 w-5 text-slate-600 dark:text-slate-200" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path id="themeMoon" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile slide-out menu -->
+    <div id="mobileMenu" class="hidden md:hidden">
+      <div class="px-4 pb-4">
+        <button id="mBuy" class="w-full text-left block py-2 text-sm font-medium border-b border-slate-100 dark:border-slate-700">Buy Crypto</button>
+        <button id="mSell" class="w-full text-left block py-2 text-sm font-medium border-b border-slate-100 dark:border-slate-700">Sell Crypto</button>
+        <button id="mMarkets" class="w-full text-left block py-2 text-sm font-medium">Markets</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- APP CONTENT -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- TOP ROW: USDT + selected + range -->
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+      <div class="card bg-white dark:bg-slate-800 rounded-lg p-4 shadow">
+        <h3 class="text-sm font-medium text-slate-500 dark:text-slate-300">USDT (Tether)</h3>
+        <div class="mt-2">
+          <div id="usdtUsd" class="text-xl font-semibold">$ --</div>
+          <div id="usdtBdt" class="text-sm text-slate-500 dark:text-slate-400">BDT --</div>
+        </div>
+      </div>
+
+      <div class="card bg-white dark:bg-slate-800 rounded-lg p-4 shadow">
+        <h3 class="text-sm font-medium text-slate-500 dark:text-slate-300">Selected Coins</h3>
+        <div id="selectedList" class="mt-2 text-sm text-slate-700 dark:text-slate-200">None — check coins to compare</div>
+      </div>
+
+      <div class="card bg-white dark:bg-slate-800 rounded-lg p-4 shadow">
+        <h3 class="text-sm font-medium text-slate-500 dark:text-slate-300">Range</h3>
+        <div class="mt-3 flex justify-between">
+          <button data-days="7" class="range-btn px-3 py-1 rounded-md text-sm bg-brand text-white">7d</button>
+          <button data-days="14" class="range-btn px-3 py-1 rounded-md text-sm hover border border-brand dark:bg-slate-700 dark:border-slate-600">14d</button>
+          <button data-days="30" class="range-btn px-3 py-1 rounded-md text-sm hover border border-brand dark:bg-slate-700 dark:border-slate-600">30d</button>
+          <button data-days="90" class="range-btn px-3 py-1 rounded-md text-sm hover border border-brand dark:bg-slate-700 dark:border-slate-600">90d</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN content: left list + right chart -->
+    <section class="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <!-- left column: markets -->
+      <aside class="lg:col-span-1">
+        <div class="bg-white dark:bg-slate-800 rounded-lg p-4 shadow">
+          <div class="flex items-center justify-between">
+            <h2 id="marketsH2" class="text-lg font-semibold">Markets (Top 250)</h2>
+            <div class="flex items-center gap-2">
+              <select id="sortSelect" class="text-sm rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1 bg-white dark:bg-slate-800">
+                <option value="market_cap_desc">Market Cap ↓</option>
+                <option value="market_cap_asc">Market Cap ↑</option>
+                <option value="price_desc">Price ↓</option>
+                <option value="price_asc">Price ↑</option>
+                <option value="change_desc">% Change ↓</option>
+                <option value="change_asc">% Change ↑</option>
+              </select>
+              <button id="refreshBtn" class="text-sm px-2 py-1 rounded-md hover:bg-green-200 dark:hover:bg-green-400">Refresh</button>
+            </div>
+          </div>
+
+          <div class="mt-4 space-y-3 max-h-[56vh] overflow-auto" id="tableContainer">
+            <!-- rows injected by JS -->
+          </div>
+        </div>
+      </aside>
+
+      <!-- right column: chart + legend -->
+      <section class="lg:col-span-2 space-y-4">
+        <div class="bg-white dark:bg-slate-800 rounded-lg p-4 shadow h-[420px]">
+          <canvas id="compareChart" class="w-full h-full"></canvas>
+        </div>
+
+        <div id="legend" class="bg-white dark:bg-slate-800 rounded-lg p-3 shadow flex flex-wrap gap-2">
+          <!-- legend chips -->
+        </div>
+      </section>
+    </section>
+
+    <footer class="mt-8 text-center text-sm text-slate-500 dark:text-slate-400 pb-12">
+      Data via CoinGecko • No API key needed
+    </footer>
+  </main>
+
+  <!-- BUY MODAL -->
+  <div id="buyModal" class="fixed inset-0 z-60 hidden" aria-hidden="true">
+    <div id="buyBackdrop" class="absolute inset-0 bg-black/40 modal-backdrop opacity-0"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+      <div id="buyPanel" class="modal-panel w-full max-w-2xl bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 transform scale-95 opacity-0">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-lg font-semibold">Buy Crypto</h3>
+            <p class="text-sm text-slate-500">Quick buy using bKash, Card, USDT or Bank Transfer</p>
+          </div>
+          <div>
+            <button class="text-slate-500 hover:text-slate-800" id="buyClose">✕</button>
+          </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- left: payment methods + exchanges -->
+          <div>
+            <h4 class="font-medium">Payment Method</h4>
+            <div class="mt-2 space-y-2">
+              <label class="flex items-center gap-2"><input type="radio" name="buyPayment" value="bkash" checked> bKash</label>
+              <label class="flex items-center gap-2"><input type="radio" name="buyPayment" value="card"> Card</label>
+              <label class="flex items-center gap-2"><input type="radio" name="buyPayment" value="usdt"> USDT</label>
+              <label class="flex items-center gap-2"><input type="radio" name="buyPayment" value="bank"> Bank Transfer</label>
+            </div>
+
+            <h4 class="font-medium mt-4">Recommended Exchanges</h4>
+            <ul class="mt-2 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+              <li>• Binance (fast & low fees)</li>
+              <li>• Bybit (good liquidity)</li>
+              <li>• OKX (global pairs)</li>
+            </ul>
+          </div>
+
+          <!-- right: calculator + amount -->
+          <div>
+            <h4 class="font-medium text-center">Currency Calculator</h4>
+            <div class="mt-2 space-y-3">
+              <div class="flex gap-2">
+                <input id="buyUsd" type="number" step="0.01" placeholder="USD amount" class="w-1/2 rounded-md border px-3 py-2" />
+                <input id="buyBdt" type="number" step="0.01" placeholder="BDT amount" class="w-1/2 rounded-md border px-3 py-2" />
+              </div>
+              <div class="flex items-center justify-between text-sm text-slate-500">
+                <div>Rate: <span id="buyRate">--</span></div>
+                <div>USDT Price (USD): <span id="usdtPriceSmall">--</span></div>
+              </div>
+
+              <div class="pt-2">
+                <button id="buyExecute" class="w-full px-4 py-2 bg-brand text-white rounded-md">Proceed to Buy</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SELL MODAL -->
+  <div id="sellModal" class="fixed inset-0 z-60 hidden" aria-hidden="true">
+    <div id="sellBackdrop" class="absolute inset-0 bg-black/40 modal-backdrop opacity-0"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+      <div id="sellPanel" class="modal-panel w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 transform scale-95 opacity-0">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-lg font-semibold">Sell Crypto</h3>
+            <p class="text-sm text-slate-500">Quick sell — choose payout method</p>
+          </div>
+          <div><button class="text-slate-500 hover:text-slate-800" id="sellClose">✕</button></div>
+        </div>
+
+        <div class="mt-4 space-y-3">
+          <label class="block text-sm">Amount (USDT)</label>
+          <input id="sellAmount" type="number" step="0.01" placeholder="USDT amount" class="w-full rounded-md border px-3 py-2" />
+
+          <div class="flex items-center justify-between text-sm text-slate-500">
+            <div>Current USDT → BDT: <span id="sellRate">--</span></div>
+            <div>Receive (BDT): <span id="sellReceive">--</span></div>
+          </div>
+
+          <div class="pt-2">
+            <button id="sellExecute" class="w-full px-4 py-2 bg-rose-500 text-white rounded-md">Proceed to Sell</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGIN MODAL -->
+  <div id="loginModal" class="fixed inset-0 z-60 hidden" aria-hidden="true">
+    <div id="loginBackdrop" class="absolute inset-0 bg-black/40 modal-backdrop opacity-0"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+      <div id="loginPanel" class="modal-panel w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 transform scale-95 opacity-0">
+        <div class="flex items-start justify-between">
+          <h3 class="text-lg font-semibold">Login</h3>
+          <button id="loginClose" class="text-slate-500 hover:text-slate-800">✕</button>
+        </div>
+
+        <div class="mt-4 space-y-3">
+          <input id="loginEmail" type="email" placeholder="Email" class="w-full rounded-md border px-3 py-2" />
+          <input id="loginPass" type="password" placeholder="Password" class="w-full rounded-md border px-3 py-2" />
+          <button id="loginSubmit" class="w-full px-4 py-2 bg-brand text-white rounded-md">Login</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNUP MODAL -->
+  <div id="signupModal" class="fixed inset-0 z-60 hidden" aria-hidden="true">
+    <div id="signupBackdrop" class="absolute inset-0 bg-black/40 modal-backdrop opacity-0"></div>
+    <div class="fixed inset-0 flex items-center justify-center p-4">
+      <div id="signupPanel" class="modal-panel w-full max-w-md bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 transform scale-95 opacity-0">
+        <div class="flex items-start justify-between">
+          <h3 class="text-lg font-semibold">Create account</h3>
+          <button id="signupClose" class="text-slate-500 hover:text-slate-800">✕</button>
+        </div>
+
+        <div class="mt-4 space-y-3">
+          <input id="signupEmail" type="email" placeholder="Email" class="w-full rounded-md border px-3 py-2" />
+          <input id="signupPass" type="password" placeholder="Password" class="w-full rounded-md border px-3 py-2" />
+          <button id="signupSubmit" class="w-full px-4 py-2 bg-brand text-white rounded-md">Sign up</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js" defer></script>
+</body>
+</html>
